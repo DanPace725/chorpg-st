@@ -1,8 +1,9 @@
 import streamlit as st
-from db import create_connection, create_tables, get_users, get_tasks, log_activity, get_user_activities, login_admin, get_levels, get_all_user_activities
+from db import create_connection, create_tables, get_users, get_tasks, log_activity, get_user_activities, login_admin, get_levels, get_all_user_activities, get_random_small_reward
 import pandas as pd
 from datetime import datetime
-from streamlit_cookies_manager import EncryptedCookieManager
+import time
+
 
 admin_id = 1
 
@@ -59,9 +60,11 @@ def display_user_progress(conn, user_id, admin_id, current_date):
         # Calculate progress percentage based on total XP against the XP needed for next level
         progress_percent = total_xp / xp_for_next_level if xp_for_next_level else 1
         progress_percent = max(0, min(progress_percent, 1))  # Clamp the value between 0 and 1
+        xp_to_next_level = xp_for_next_level - total_xp
+
 
         st.progress(progress_percent)
-        st.caption(f"{total_xp} / {xp_for_next_level} XP to Next Level")
+        st.caption(f"{xp_to_next_level} XP to Next Level")
 
     with col2:
         st.header("Total XP")
@@ -93,8 +96,13 @@ def manage_tasks(conn, user_id, admin_id):
     time_spent = st.sidebar.number_input("Time Spent (minutes)", min_value=0, value=0)
     bonus_xp = st.sidebar.number_input("Bonus XP", min_value=0, value=0)
     if st.sidebar.button('Log Task'):
-        log_activity(conn, admin_id, user_id, task_id, str(date), time_spent)
+        small_reward = get_random_small_reward(conn)
+        log_activity(conn, admin_id, user_id, task_id, str(date), time_spent, bonus_xp, small_reward)
         st.success("Task logged successfully!")
+        if small_reward:
+            st.toast(f"Congratulations! You earned {small_reward} .")
+        
+        time.sleep(4)
         st.rerun()
 
 if __name__ == "__main__":
