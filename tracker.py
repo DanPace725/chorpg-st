@@ -1,5 +1,5 @@
 import streamlit as st
-from db import create_connection, create_tables, get_users, get_tasks, log_activity, get_user_activities, login_admin, get_levels, get_all_user_activities
+from db import create_connection, create_tables, get_users, get_tasks, log_activity, get_user_activities, login_admin, get_levels, get_all_user_activities, get_random_small_reward
 import pandas as pd
 from datetime import datetime
 from streamlit_cookies_manager import EncryptedCookieManager
@@ -94,7 +94,10 @@ def manage_tasks(conn, user_id, admin_id):
     bonus_xp = st.sidebar.number_input("Bonus XP", min_value=0, value=0)
     if st.sidebar.button('Log Task'):
         log_activity(conn, admin_id, user_id, task_id, str(date), time_spent)
+        small_reward = get_random_small_reward(conn)
         st.success("Task logged successfully!")
+        if small_reward:
+            st.info(f"Congratulations! You earned {small_reward} .")
         st.rerun()
 
 if __name__ == "__main__":
