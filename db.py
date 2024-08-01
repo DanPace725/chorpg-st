@@ -64,9 +64,10 @@ def create_tables(conn):
                 time_spent INTEGER,
                 xp_earned INTEGER,
                 bonus_xp INTEGER DEFAULT 0,
-                FOREIGN KEY (user_id) REFERENCES Users(user_id),
+                small_reward TEXT,
+                FOREIGN KEY (user_id) REFERENCES Users(user_id) ON DELETE CASCADE,
                 FOREIGN KEY (task_id) REFERENCES Tasks(task_id),
-                FOREIGN KEY (admin_id) REFERENCES admin(id)
+                FOREIGN KEY (admin_id) REFERENCES admin(id) ON DELETE CASCADE
             
             );
             CREATE TABLE IF NOT EXISTS "Levels" (
@@ -109,10 +110,12 @@ def login_admin(conn, username, password):
         return None, False
 
 # User Management Functions
-def add_user(conn, admin_id, name):
+def add_user(conn, admin_id, name, current_level=0, total_xp=0):
     with conn:
-        conn.execute("INSERT INTO Users (admin_id, name) VALUES (?, ?)", (admin_id, name))
-
+        conn.execute(
+            "INSERT INTO Users (admin_id, name, current_level, total_xp) VALUES (?, ?, ?, ?)",
+            (admin_id, name, current_level, total_xp)
+        )
 def get_users(conn, admin_id):
     c = conn.cursor()
     c.execute("SELECT user_id, name, current_level, total_xp FROM Users WHERE admin_id = ?", (admin_id,))
@@ -145,26 +148,25 @@ def delete_task(conn, task_id):
         conn.execute("DELETE FROM Tasks WHERE task_id = ?", (task_id,))
 
 # Activity Log Functions
-def log_activity(conn, admin_id, user_id, task_id, date, time_spent, bonus_xp=0):
+def log_activity(conn, admin_id, user_id, task_id, date, time_spent, bonus_xp=0, small_reward=None):
     xp_earned = calculate_xp(conn, task_id, time_spent)
-    small_reward = get_random_small_reward(conn)
+    bonus_xp = int(bonus_xp)
     with conn:
-        conn.execute("INSERT INTO ActivityLog (admin_id, user_id, task_id, date, time_spent, xp_earned, bonus_xp) VALUES (?, ?, ?, ?, ?, ?, ?)",
-                     (admin_id, user_id, task_id, date, time_spent, xp_earned, bonus_xp))
+        conn.execute("INSERT INTO ActivityLog (admin_id, user_id, task_id, date, time_spent, xp_earned, bonus_xp, small_reward) VALUES (?, ?, ?, ?, ?, ?, ?,?)",
+                     (admin_id, user_id, task_id, date, time_spent, xp_earned, bonus_xp, small_reward))
         update_total_xp(conn, user_id, xp_earned + bonus_xp)  # Update the user's total XP along with logging the activity
-        if small_reward:
-            print(f"Small Reward Earned: {small_reward}")
+        
             
 def get_user_activities(conn, admin_id, user_id, date):
     c = conn.cursor()
     query = """
-    SELECT a.date, t.task_name, a.time_spent, a.xp_earned
+    SELECT a.date, t.task_name, a.time_spent, a.xp_earned, a.small_reward
     FROM ActivityLog a
     JOIN Tasks t ON a.task_id = t.task_id
     WHERE a.admin_id = ? AND a.user_id = ? AND a.date = ?
     """
     c.execute(query, (admin_id, user_id, date))
-    df = pd.DataFrame(c.fetchall(), columns=['Date', 'Task Name', 'Time Spent', 'XP Earned'])
+    df = pd.DataFrame(c.fetchall(), columns=['Date', 'Task Name', 'Time Spent', 'XP Earned', 'Small Reward'])
     df.index += 1
     return df
 

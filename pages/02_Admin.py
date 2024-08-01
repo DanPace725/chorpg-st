@@ -6,6 +6,20 @@ st.set_page_config(page_title="Admin", page_icon="🔑", layout="wide")
 
 admin_id = 1
 
+def import_users_from_csv(conn, admin_id, csv_file):
+    df = pd.read_csv(csv_file)
+    for _, row in df.iterrows():
+        name = row.get('Name')
+        current_level = row.get('Current Level')
+        total_xp = row.get('Total XP')
+        if name:
+            add_user(conn, admin_id, name, current_level, total_xp)
+
+def export_users_to_csv(conn, admin_id):
+    users = get_users(conn, admin_id)
+    users_df = pd.DataFrame(users, columns=["User ID", "Name", "Current Level", "Total XP"])
+    return users_df.to_csv(index=False)
+
 def manage_levels(conn, admin_id):
     with st.expander("Manage Levels"):
         col1, col2 = st.columns(2)
@@ -78,10 +92,11 @@ def admin_page():
             if st.button("Remove Child"):
                 delete_user(conn, child_to_remove[0])
                 st.success(f"Child '{child_to_remove[1]}' removed successfully!")
-                st.experimental_rerun()
+                
 
     manage_levels(conn, admin_id)
     with st.expander("View All Data"):
+
         col1, col2, col3 = st.columns(3)
         with col1:
             st.subheader("All Users and XP Data")
@@ -111,4 +126,26 @@ def admin_page():
             else:
                 st.write("No level data available.")
 
+    with st.expander("Import/Export Users"):
+        col1, col2 = st.columns(2)
+        
+        # Import Users
+        with col1:
+            st.subheader("Import Users")
+            uploaded_file = st.file_uploader("Choose a CSV file", type="csv")
+            if uploaded_file is not None:
+                import_users_from_csv(conn, admin_id, uploaded_file)
+                st.success("Users imported successfully!")
+        
+        # Export Users
+        with col2:
+            st.subheader("Export Users")
+            if st.button("Export Users to CSV"):
+                csv = export_users_to_csv(conn, admin_id)
+                st.download_button(
+                    label="Download CSV",
+                    data=csv,
+                    file_name='users.csv',
+                    mime='text/csv',
+                )
 admin_page()
